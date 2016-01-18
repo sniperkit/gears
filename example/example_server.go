@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -14,12 +13,12 @@ func middlewareExample(c context.Context, w http.ResponseWriter, r *http.Request
 	return c
 }
 
-func errorExample(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+func gearExample(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
 
 	var err error
 
 	// something happened
-	err = fmt.Errorf("Something bad happened")
+	// err = fmt.Errorf("Something bad happened") // uncomment to see how errors are returned
 
 	if err != nil {
 		// something didn't work out..
