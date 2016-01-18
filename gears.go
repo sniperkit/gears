@@ -91,10 +91,10 @@ func handleError(c context.Context, w http.ResponseWriter) {
 func NewError(c context.Context, code int, message string) context.Context {
 
 	var cancel context.CancelFunc // cancel the context
-    err := &HTTPError{code, message}
+	err := &HTTPError{code, message}
 	c = context.WithValue(c, "error", err)
 	c, cancel = context.WithCancel(c)
 	cancel()
-    
+
 	return c
 }
