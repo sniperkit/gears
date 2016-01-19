@@ -24,20 +24,20 @@ type Handler struct {
 // Gear is a context aware middleware function signature
 type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
 
-// HTTPError contains code and message
+// httpError contains code and message
 // and implements error interface
-type HTTPError struct {
+type httpError struct {
 	code    int
 	message string
 }
 
-func (err *HTTPError) Error() string {
+func (err *httpError) Error() string {
 	return fmt.Sprintf("%v %s", err.code, err.message)
 }
 
-// NewHTTPError returns a HTTPError as an error interface
-func NewHTTPError(code int, message string) *HTTPError {
-	return &HTTPError{code, message}
+// NewHTTPError returns a httpError as an error interface
+func newHTTPError(code int, message string) *httpError {
+	return &httpError{code, message}
 }
 
 // NewHandler returns a pointer to a Handler struct which implements
@@ -80,7 +80,7 @@ func Chain(gears ...Gear) Gear {
 func handleError(c context.Context, w http.ResponseWriter) {
 
 	// handle http error
-	if err, ok := c.Value("error").(*HTTPError); ok {
+	if err, ok := c.Value("error").(*httpError); ok {
 		http.Error(w, err.Error(), err.code)
 	} else {
 		http.Error(w, "wrong middleware error type", http.StatusInternalServerError)
@@ -91,7 +91,7 @@ func handleError(c context.Context, w http.ResponseWriter) {
 func NewError(c context.Context, code int, message string) context.Context {
 
 	var cancel context.CancelFunc // cancel the context
-	err := &HTTPError{code, message}
+	err := &httpError{code, message}
 	c = context.WithValue(c, "error", err)
 	c, cancel = context.WithCancel(c)
 	cancel()

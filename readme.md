@@ -50,8 +50,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
-
-
 ```go
 var BGContext context.Context
 ```
@@ -78,28 +76,6 @@ Gear is a context aware middleware function signature
 func Chain(gears ...Gear) Gear
 ```
 Chain multiple middleware
-
-#### type HTTPError
-
-```go
-type HTTPError struct {
-}
-```
-
-HTTPError contains code and message and implements error interface
-
-#### func  NewHTTPError
-
-```go
-func NewHTTPError(code int, message string) *HTTPError
-```
-NewHTTPError returns a HTTPError as an error interface
-
-#### func (*HTTPError) Error
-
-```go
-func (err *HTTPError) Error() string
-```
 
 #### type Handler
 
