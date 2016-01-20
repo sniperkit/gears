@@ -109,8 +109,11 @@ func handleError(c context.Context, w http.ResponseWriter) {
 		// error can't be unmarshaled, this is not supposed to happen it's internal error
 	}
 
+	// Write the response
 	w.Header().Set("Content-Type", "application/json")
-	http.Error(w, string(responseBody), statusErr.Status())
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(statusErr.Status())
+	fmt.Fprintln(w, string(responseBody))
 }
 
 // NewStatusError sets the error on the context and returns the canceled context.

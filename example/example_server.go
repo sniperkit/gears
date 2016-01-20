@@ -14,7 +14,7 @@ func gearHeaderExample(c context.Context, w http.ResponseWriter, r *http.Request
 	var err error
 
 	// something happened
-	err = fmt.Errorf("Something bad happened") // uncomment to see how errors are returned
+	// err = fmt.Errorf("Something bad happened") // uncomment to see how errors are returned
 
 	if err != nil {
 		// something didn't work out..
@@ -34,6 +34,13 @@ func gearTokenExample(c context.Context, w http.ResponseWriter, r *http.Request)
 	return context.WithValue(c, "token", token)
 }
 
+func gearErrorExample(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+
+	// let's say we have an error here
+	err := fmt.Errorf("Can't do that, sorry... would you like a hot beverage?")
+	return gears.NewErrorContext(c, gears.NewStatusError(http.StatusInternalServerError, err.Error()))
+}
+
 func mainHandler(c context.Context, w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"message\":\"Hello World\"}"))
 }
@@ -44,11 +51,11 @@ func main() {
 	http.Handle("/main", gears.NewHandler(mainHandler, gearHeaderExample))
 
 	// chain middleware in the constructor
-	http.Handle("/error", gears.NewHandler(mainHandler, gearTokenExample, gearHeaderExample))
+	http.Handle("/error", gears.NewHandler(mainHandler, gearErrorExample, gearHeaderExample))
 
 	// chain middleware prior using them
 	gearBox := gears.Chain(gearTokenExample, gearHeaderExample)
-	http.Handle("/other_error", gears.NewHandler(mainHandler, gearBox))
+	http.Handle("/gearbox", gears.NewHandler(mainHandler, gearBox))
 
 	// ... chained middleware can be further chained.
 
