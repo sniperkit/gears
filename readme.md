@@ -5,62 +5,18 @@
 
 ## Usage
 
-Some (not too useful) examples, for the sole purpose of demonstrating the usage:
-
-```go
-func gearExample(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
-
-	var err error
-	// err = fmt.Errorf("") // uncomment to see how errors are returned
-
-	if err != nil {
-		// something didn't work out..
-		errCtx := gears.NewError(c, http.StatusInternalServerError, "Sorry, I failed...")
-		return errCtx
-	}
-
-	// business as usual
-	w.Header().Set("Content-Type", "application/json")
-	return c
-}
-
-func mainHandler(c context.Context, w http.ResponseWriter, r *http.Request) {
-    
-    // gears can be used inside handlers to perform repetitive tasks
-    c = gearExample(c, w, r)
-    
-	w.Write([]byte("World"))
-}
-
-func main() {
-
-	// single middleware
-	http.Handle("/main", gears.NewHandler(mainHandler, gearExample))
-
-	// chain gears in the constructor
-	http.Handle("/error", gears.NewHandler(mainHandler, gearExample, gearExample))
-
-	// gears can be chained before using them
-	withError := gears.Chain(gearExample, gearExample)
-	http.Handle("/other_error", gears.NewHandler(mainHandler, withError))
-
-	// ... chained gears can be further chained.
-    withErrorTwice := gears.Chain(withError, gearExample)
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-```
 ```go
 var BGContext context.Context
 ```
 BGContext is the background context for all gears middleware
 
-#### func  NewError
+#### func  NewErrorContext
 
 ```go
-func NewError(c context.Context, code int, message string) context.Context
+func NewErrorContext(c context.Context, err StatusError) context.Context
 ```
-NewError sets the error on the context and returns the canceled context.
+NewErrorContext expects an err which implements StatusError interface, and
+returns a context which has a json formatted error on it.
 
 #### type Gear
 
@@ -100,3 +56,32 @@ which can be used with standard http routers.
 ```go
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 ```
+
+#### type JSONError
+
+```go
+type JSONError interface {
+	Error() string
+	MarshalJSON() ([]byte, error)
+}
+```
+
+JSONError is an interface used for handling errors as JSON encoded bytes.
+
+#### type StatusError
+
+```go
+type StatusError interface {
+	Error() string
+	Status() int
+}
+```
+
+StatusError is an interface used for handling http errors with proper statuses
+
+#### func  NewStatusError
+
+```go
+func NewStatusError(status int, message string) StatusError
+```
+NewStatusError sets the error on the context and returns the canceled context.
