@@ -1,6 +1,7 @@
 package gears
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -24,20 +25,28 @@ type Handler struct {
 // Gear is a context aware middleware function signature
 type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
 
-// httpError contains code and message
+// httpError contains status code and message
 // and implements error interface
 type httpError struct {
-	code    int
+	status  int
 	message string
 }
 
 func (err *httpError) Error() string {
-	return fmt.Sprintf("%v %s", err.code, err.message)
+	return fmt.Sprintf("%v %s", err.Status(), err.message)
+}
+
+func (err *httpError) Status() int {
+	return err.status
+}
+
+func (err *httpError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{"error": err.Status(), "description": err.Error()})
 }
 
 // NewHTTPError returns a httpError as an error interface
-func newHTTPError(code int, message string) *httpError {
-	return &httpError{code, message}
+func newHTTPError(status int, message string) *httpError {
+	return &httpError{status, message}
 }
 
 // NewHandler returns a pointer to a Handler struct which implements
@@ -80,21 +89,46 @@ func Chain(gears ...Gear) Gear {
 func handleError(c context.Context, w http.ResponseWriter) {
 
 	// handle http error
-	if err, ok := c.Value("error").(*httpError); ok {
-		http.Error(w, err.Error(), err.code)
-	} else {
-		http.Error(w, "wrong middleware error type", http.StatusInternalServerError)
+	err := c.Value("error")
+	if err == nil {
+		// error not found, this is not supposed to happen it's internal error
 	}
+
+	jsonErr, ok := err.(JSONError)
+	if !ok {
+		// error can't be marshaled, this is not supposed to happen it's internal error
+	}
+
+	statusErr, ok := err.(StatusError)
+	if !ok {
+		// error doesn't implement StatusError, this is not supposed to happen it's internal error
+	}
+
+	responseBody, err := json.Marshal(jsonErr)
+	if err != nil {
+		// error can't be unmarshaled, this is not supposed to happen it's internal error
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	http.Error(w, string(responseBody), statusErr.Status())
 }
 
-// NewError sets the error on the context and returns the canceled context.
-func NewError(c context.Context, code int, message string) context.Context {
+// NewStatusError sets the error on the context and returns the canceled context.
+func NewStatusError(status int, message string) StatusError {
+	return &httpError{status, message}
+}
 
-	var cancel context.CancelFunc // cancel the context
-	err := &httpError{code, message}
-	c = context.WithValue(c, "error", err)
+// NewErrorContext expects an err which implements StatusError interface, and returns
+// a context which has a json formatted error on it.
+func NewErrorContext(c context.Context, err StatusError) context.Context {
+
+	var cancel context.CancelFunc
 	c, cancel = context.WithCancel(c)
-	cancel()
+	defer cancel()
 
-	return c
+	if jsonErr, ok := err.(JSONError); ok {
+		return context.WithValue(c, "error", jsonErr)
+	}
+
+	return context.WithValue(c, "error", &httpError{err.Status(), err.Error()})
 }
