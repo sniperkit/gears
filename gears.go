@@ -52,12 +52,11 @@ func newHTTPError(status int, message string) *httpError {
 	return &httpError{status, message}
 }
 
-// NewHandler returns a pointer to a Handler struct which implements
-// http.Handler interface. This is a convenient way to construct context aware
+// NewHandler returns a http.Handler as a convenient way to construct context aware
 // gear.Handlers which can be used with standard http routers.
 // fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
 // or func(c context.Context, w http.ResponseWriter, r *http.Request)
-func NewHandler(fn interface{}, gears ...Gear) *Handler {
+func NewHandler(fn interface{}, gears ...Gear) http.Handler {
 	var handlerFn ContextHandler
 	switch t := fn.(type) {
 	case func(c context.Context, w http.ResponseWriter, r *http.Request):
