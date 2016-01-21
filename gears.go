@@ -112,24 +112,23 @@ func Chain(gears ...Gear) Gear {
 func handleError(c context.Context, w http.ResponseWriter) {
 
 	// handle http error
-	err := c.Value("error")
-	if err == nil {
-		// error not found, this is not supposed to happen it's internal error
+	errValue := c.Value("error")
+	if errValue == nil {
+		// error not found, means that a middleware canceled the context
+		// signaling that the request is completed, don't do further processing
+		return
 	}
 
-	jsonErr, ok := err.(JSONError)
+	statusErr, ok := errValue.(StatusError)
 	if !ok {
-		// error can't be marshaled, this is not supposed to happen it's internal error
+		// error doesn't implement StatusError
+		statusErr = NewStatusError(500, fmt.Sprint(errValue))
 	}
 
-	statusErr, ok := err.(StatusError)
-	if !ok {
-		// error doesn't implement StatusError, this is not supposed to happen it's internal error
-	}
-
-	responseBody, err := json.Marshal(jsonErr)
+	responseBody, err := json.Marshal(statusErr)
 	if err != nil {
-		// error can't be unmarshaled, this is not supposed to happen it's internal error
+		// error can't be marshaled
+		statusErr = NewStatusError(500, fmt.Sprint(errValue))
 	}
 
 	// Write the response
