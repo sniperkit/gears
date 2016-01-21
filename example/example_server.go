@@ -31,6 +31,7 @@ func gearTokenExample(c context.Context, w http.ResponseWriter, r *http.Request)
 
 	// otherwise do your thing
 	token := r.Header.Get("Authorization")
+	w.Header().Set("Authorization", token) // just so we see something in the result..
 	return context.WithValue(c, "token", token)
 }
 
@@ -47,17 +48,22 @@ func mainHandler(c context.Context, w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	// single middleware
-	http.Handle("/main", gears.NewHandler(mainHandler, gearHeaderExample))
+	base := gears.NewHandler(mainHandler, gearHeaderExample)
 
-	// chain middleware in the constructor
+	// single middleware
+	http.Handle("/main", base)
+
+	// extend base handler with a new gear (middleware)
+	http.Handle("/main/extended", gears.NewHandler(base, gearTokenExample))
+
+	// chain middleware in the handler constructor...
 	http.Handle("/error", gears.NewHandler(mainHandler, gearErrorExample, gearHeaderExample))
 
-	// chain middleware prior using them
+	//...or chain middleware before using them in the constructor
 	gearBox := gears.Chain(gearTokenExample, gearHeaderExample)
 	http.Handle("/gearbox", gears.NewHandler(mainHandler, gearBox))
 
-	// ... chained middleware can be further chained.
+	// tip: chained middleware can be chained further.
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

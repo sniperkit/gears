@@ -64,6 +64,8 @@ func NewHandler(fn interface{}, gears ...Gear) *Handler {
 		handlerFn = t
 	case func(w http.ResponseWriter, r *http.Request):
 		handlerFn = withContext(t)
+	case http.Handler:
+		handlerFn = withContext(t.ServeHTTP)
 	default:
 		panic("invalid handler signature")
 	}
