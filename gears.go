@@ -20,7 +20,7 @@ func init() {
 type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
 
 // Handler is a context aware http request handler
-type Handler struct {
+type handler struct {
 	fn   func(c context.Context, w http.ResponseWriter, r *http.Request)
 	gear Gear
 }
@@ -69,7 +69,7 @@ func NewHandler(fn interface{}, gears ...Gear) http.Handler {
 		panic("invalid handler signature")
 	}
 	gear := Chain(gears...)
-	return &Handler{handlerFn, gear}
+	return &handler{handlerFn, gear}
 }
 
 // allows for using simple handlers (those without context in NewHandler)
@@ -79,7 +79,7 @@ func withContext(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler
 	}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c, cancel := context.WithCancel(BGContext)
 	defer cancel()
 	c = h.gear(c, w, r)
