@@ -160,7 +160,7 @@ func NewErrorContext(c context.Context, err StatusError) context.Context {
 
 // NewCanceledContext return a context which is canceled. It is used for signaling
 // to any subsequent handler / gear / middleware in the chain to stop processing the request.
-func NewCanceledContext(c context.Context, err StatusError) context.Context {
+func NewCanceledContext(c context.Context) context.Context {
 
 	var cancel context.CancelFunc
 	c, cancel = context.WithCancel(c)
