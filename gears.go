@@ -157,3 +157,14 @@ func NewErrorContext(c context.Context, err StatusError) context.Context {
 
 	return context.WithValue(c, "error", &httpError{err.Status(), err.Error()})
 }
+
+// NewCanceledContext return a context which is canceled. It is used for signaling
+// to any subsequent handler / gear / middleware in the chain to stop processing the request.
+func NewCanceledContext(c context.Context, err StatusError) context.Context {
+
+	var cancel context.CancelFunc
+	c, cancel = context.WithCancel(c)
+	defer cancel()
+	return c
+
+}
