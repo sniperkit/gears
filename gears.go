@@ -16,6 +16,9 @@ func init() {
 	BGContext = context.Background()
 }
 
+// ContextHandler is a function signature for handers which require context
+type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
+
 // Handler is a context aware http request handler
 type Handler struct {
 	fn   func(c context.Context, w http.ResponseWriter, r *http.Request)
@@ -52,9 +55,27 @@ func newHTTPError(status int, message string) *httpError {
 // NewHandler returns a pointer to a Handler struct which implements
 // http.Handler interface. This is a convenient way to construct context aware
 // gear.Handlers which can be used with standard http routers.
-func NewHandler(fn func(c context.Context, w http.ResponseWriter, r *http.Request), gears ...Gear) *Handler {
+// fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
+// or func(c context.Context, w http.ResponseWriter, r *http.Request)
+func NewHandler(fn interface{}, gears ...Gear) *Handler {
+	var handlerFn ContextHandler
+	switch t := fn.(type) {
+	case func(c context.Context, w http.ResponseWriter, r *http.Request):
+		handlerFn = t
+	case func(w http.ResponseWriter, r *http.Request):
+		handlerFn = withContext(t)
+	default:
+		panic("invalid handler signature")
+	}
 	gear := Chain(gears...)
-	return &Handler{fn, gear}
+	return &Handler{handlerFn, gear}
+}
+
+// allows for using simple handlers (those without context in NewHandler)
+func withContext(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) {
+		fn(w, r)
+	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
