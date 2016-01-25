@@ -28,6 +28,10 @@ type handler struct {
 // Gear is a context aware middleware function signature
 type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
 
+func New(fn func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context) Gear {
+	return Gear(fn)
+}
+
 // httpError contains status code and message
 // and implements error interface
 type httpError struct {
@@ -97,6 +101,9 @@ func Chain(gears ...Gear) Gear {
 		var localCtx context.Context
 		for _, gear := range gears {
 			localCtx = gear(c, w, r)
+			if localCtx == nil {
+				return NewErrorContext(c, NewStatusError(500, "Middleware returned nil context"))
+			}
 			if localCtx.Err() != nil {
 				return localCtx
 			}
