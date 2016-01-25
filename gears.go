@@ -21,15 +21,43 @@ type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Reque
 
 // Handler is a context aware http request handler
 type handler struct {
-	fn   func(c context.Context, w http.ResponseWriter, r *http.Request)
+	//fn   func(c context.Context, w http.ResponseWriter, r *http.Request)
 	gear Gear
 }
 
 // Gear is a context aware middleware function signature
 type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
 
-func New(fn func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context) Gear {
-	return Gear(fn)
+// New Gear is constructed by taking either of the following types as input;
+// func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
+// func(c context.Context, w http.ResponseWriter, r *http.Request)
+// http.Handler
+// Passing other types will return error.
+func New(fn interface{}) Gear {
+	switch t := fn.(type) {
+	case func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context:
+		return Gear(t)
+	case func(c context.Context, w http.ResponseWriter, r *http.Request):
+		return wrapContextHandler(t)
+	case http.Handler:
+		return wrapHandler(t)
+	default:
+		panic("invalid type")
+	}
+}
+
+func wrapHandler(h http.Handler) Gear {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+		h.ServeHTTP(w, r)
+		return c
+	}
+}
+
+func wrapContextHandler(h ContextHandler) Gear {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+		h(c, w, r)
+		return c
+	}
 }
 
 // httpError contains status code and message
@@ -56,24 +84,32 @@ func newHTTPError(status int, message string) *httpError {
 	return &httpError{status, message}
 }
 
+// loggedWriter
+type loggedWriter struct {
+	status int
+	w      http.ResponseWriter
+}
+
+func (lw *loggedWriter) WriteHeader(status int) {
+	lw.status = status
+	lw.w.WriteHeader(status)
+}
+
+func (lw *loggedWriter) Header() http.Header {
+	return lw.w.Header()
+}
+
+func (lw *loggedWriter) Write(b []byte) (int, error) {
+	return lw.w.Write(b)
+}
+
 // NewHandler returns a http.Handler as a convenient way to construct context aware
 // gear.Handlers which can be used with standard http routers.
 // fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
 // or func(c context.Context, w http.ResponseWriter, r *http.Request)
-func NewHandler(fn interface{}, gears ...Gear) http.Handler {
-	var handlerFn ContextHandler
-	switch t := fn.(type) {
-	case func(c context.Context, w http.ResponseWriter, r *http.Request):
-		handlerFn = t
-	case func(w http.ResponseWriter, r *http.Request):
-		handlerFn = withContext(t)
-	case http.Handler:
-		handlerFn = withContext(t.ServeHTTP)
-	default:
-		panic("invalid handler signature")
-	}
+func NewHandler(gears ...Gear) http.Handler {
 	gear := Chain(gears...)
-	return &handler{handlerFn, gear}
+	return &handler{gear}
 }
 
 // allows for using simple handlers (those without context in NewHandler)
@@ -86,13 +122,15 @@ func withContext(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c, cancel := context.WithCancel(BGContext)
 	defer cancel()
-	c = h.gear(c, w, r)
+
+	// logged writer
+	lw := &loggedWriter{0, w}
+	c = h.gear(c, lw, r)
 	switch c.Err() {
 	case context.Canceled, context.DeadlineExceeded:
 		handleError(c, w)
 		return
 	}
-	h.fn(c, w, r)
 }
 
 // Chain multiple middleware
