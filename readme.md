@@ -10,6 +10,15 @@ var BGContext context.Context
 ```
 BGContext is the background context for all gears middleware
 
+#### func  NewCanceledContext
+
+```go
+func NewCanceledContext(c context.Context) context.Context
+```
+NewCanceledContext return a context which is canceled. It is used for signaling
+to any subsequent handler / gear / middleware in the chain to stop processing
+the request.
+
 #### func  NewErrorContext
 
 ```go
@@ -17,6 +26,24 @@ func NewErrorContext(c context.Context, err StatusError) context.Context
 ```
 NewErrorContext expects an err which implements StatusError interface, and
 returns a context which has a json formatted error on it.
+
+#### func  NewHandler
+
+```go
+func NewHandler(fn interface{}, gears ...Gear) http.Handler
+```
+NewHandler returns a http.Handler as a convenient way to construct context aware
+gear.Handlers which can be used with standard http routers. fn must have a
+signature of either func(w http.ResponseWriter, r *http.Request) or func(c
+context.Context, w http.ResponseWriter, r *http.Request)
+
+#### type ContextHandler
+
+```go
+type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
+```
+
+ContextHandler is a function signature for handers which require context
 
 #### type Gear
 
@@ -33,28 +60,10 @@ func Chain(gears ...Gear) Gear
 ```
 Chain multiple middleware
 
-#### type Handler
+#### func  New
 
 ```go
-type Handler struct {
-}
-```
-
-Handler is a context aware http request handler
-
-#### func  NewHandler
-
-```go
-func NewHandler(fn func(c context.Context, w http.ResponseWriter, r *http.Request), gears ...Gear) *Handler
-```
-NewHandler returns a pointer to a Handler struct which implements http.Handler
-interface. This is a convenient way to construct context aware gear.Handlers
-which can be used with standard http routers.
-
-#### func (*Handler) ServeHTTP
-
-```go
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request)
+func New(fn func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context) Gear
 ```
 
 #### type JSONError
