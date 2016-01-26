@@ -144,7 +144,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			// just in case something overwrites the value with a different type
 			// we don't want to panic
-			h.log.Printf(`"%s %s" %d in %s`, r.Method, r.URL.Path, lw.status, time.Since(start))
+			h.log.Printf("\"%s %s\" %v in %s", r.Method, r.URL.Path, lw.status, time.Since(start))
 		}
 		cancel()
 	}()
