@@ -30,7 +30,7 @@ returns a context which has a json formatted error on it.
 #### func  NewHandler
 
 ```go
-func NewHandler(fn interface{}, gears ...Gear) http.Handler
+func NewHandler(logger Logger, gears ...Gear) http.Handler
 ```
 NewHandler returns a http.Handler as a convenient way to construct context aware
 gear.Handlers which can be used with standard http routers. fn must have a
@@ -63,8 +63,12 @@ Chain multiple middleware
 #### func  New
 
 ```go
-func New(fn func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context) Gear
+func New(fn interface{}) Gear
 ```
+New Gear is constructed by taking either of the following types as input; func(c
+context.Context, w http.ResponseWriter, r *http.Request) context.Context func(c
+context.Context, w http.ResponseWriter, r *http.Request) http.Handler Passing
+other types will return error.
 
 #### type JSONError
 
@@ -76,6 +80,17 @@ type JSONError interface {
 ```
 
 JSONError is an interface used for handling errors as JSON encoded bytes.
+
+#### type Logger
+
+```go
+type Logger interface {
+	Printf(format string, v ...interface{})
+}
+```
+
+Logger is an interface which is used by gears to log return code and completion
+time on each http request
 
 #### type StatusError
 

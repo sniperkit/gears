@@ -3,7 +3,9 @@ package gears
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -21,7 +23,7 @@ type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Reque
 
 // Handler is a context aware http request handler
 type handler struct {
-	//fn   func(c context.Context, w http.ResponseWriter, r *http.Request)
+	log  Logger
 	gear Gear
 }
 
@@ -84,6 +86,12 @@ func newHTTPError(status int, message string) *httpError {
 	return &httpError{status, message}
 }
 
+// Logger is an interface which is used by gears to log
+// return code and completion time on each http request
+type Logger interface {
+	Printf(format string, v ...interface{})
+}
+
 // loggedWriter
 type loggedWriter struct {
 	status int
@@ -107,9 +115,16 @@ func (lw *loggedWriter) Write(b []byte) (int, error) {
 // gear.Handlers which can be used with standard http routers.
 // fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
 // or func(c context.Context, w http.ResponseWriter, r *http.Request)
-func NewHandler(gears ...Gear) http.Handler {
+func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	gear := Chain(gears...)
-	return &handler{gear}
+	h := &handler{gear: gear}
+	if logger != nil {
+		h.log = logger
+	} else {
+		h.log = &log.Logger{}
+	}
+
+	return h
 }
 
 // allows for using simple handlers (those without context in NewHandler)
@@ -120,11 +135,20 @@ func withContext(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c, cancel := context.WithCancel(BGContext)
-	defer cancel()
-
 	// logged writer
 	lw := &loggedWriter{0, w}
+	c, cancel := context.WithCancel(BGContext)
+	c = context.WithValue(c, "start_timestamp", time.Now().UTC())
+	defer func() {
+		start, ok := c.Value("start_timestamp").(time.Time)
+		if ok {
+			// just in case something overwrites the value with a different type
+			// we don't want to panic
+			h.log.Printf(`"%s %s" %d in %s`, r.Method, r.URL.Path, lw.status, time.Since(start))
+		}
+		cancel()
+	}()
+
 	c = h.gear(c, lw, r)
 	switch c.Err() {
 	case context.Canceled, context.DeadlineExceeded:
