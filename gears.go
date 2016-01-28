@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"golang.org/x/net/context"
@@ -121,7 +122,7 @@ func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	if logger != nil {
 		h.log = logger
 	} else {
-		h.log = &log.Logger{}
+		h.log = log.New(os.Stdout, "", log.LstdFlags)
 	}
 
 	return h
