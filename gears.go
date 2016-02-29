@@ -153,7 +153,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c = h.gear(c, lw, r)
 	switch c.Err() {
 	case context.Canceled, context.DeadlineExceeded:
-		handleError(c, w)
+		handleError(c, lw)
 		return
 	}
 }
