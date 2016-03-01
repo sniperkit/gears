@@ -8,7 +8,9 @@
 ```go
 var BGContext context.Context
 ```
-BGContext is the background context for all gears middleware
+BGContext is the background context for all gears middleware. Usually the http.HandleFunc
+Is provided by NewHandler which cancels the derived context as soon the http request is
+handled.  
 
 #### func  NewCanceledContext
 
@@ -16,8 +18,8 @@ BGContext is the background context for all gears middleware
 func NewCanceledContext(c context.Context) context.Context
 ```
 NewCanceledContext return a context which is canceled. It is used for signaling
-to any subsequent handler / gear / middleware in the chain to stop processing
-the request.
+to a subsequent handler / gear / middleware in the chain to stop processing the
+request.
 
 #### func  NewErrorContext
 
@@ -58,7 +60,7 @@ Gear is a context aware middleware function signature
 ```go
 func Chain(gears ...Gear) Gear
 ```
-Chain multiple middleware
+Chain multiple middleware returning a single Gear func.
 
 #### func  New
 
@@ -69,6 +71,14 @@ New Gear is constructed by taking either of the following types as input; func(c
 context.Context, w http.ResponseWriter, r *http.Request) context.Context func(c
 context.Context, w http.ResponseWriter, r *http.Request) http.Handler Passing
 other types will return error.
+
+#### func  WrapHandlerFunc
+
+```go
+func WrapHandlerFunc(fn http.HandlerFunc) Gear
+```
+WrapHandlerFunc wraps a http.HandlerFunc returning a Gear. This provides a way
+to combine common middleware packages with gears.
 
 #### type JSONError
 
