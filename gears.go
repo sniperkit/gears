@@ -128,7 +128,7 @@ func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	return h
 }
 
-// WithContext wraps a http.HandlerFunc returning a Gear.
+// WrapHandlerFunc wraps a http.HandlerFunc returning a Gear.
 // This provides a way to combine common middleware packages with gears.
 func WrapHandlerFunc(fn http.HandlerFunc) Gear {
 	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
@@ -160,7 +160,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Chain multiple middleware
+// Chain multiple middleware returning a single Gear func.
 func Chain(gears ...Gear) Gear {
 	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
 		var localCtx context.Context
@@ -230,12 +230,12 @@ func NewErrorContext(c context.Context, err StatusError) context.Context {
 }
 
 // NewCanceledContext return a context which is canceled. It is used for signaling
-// to any subsequent handler / gear / middleware in the chain to stop processing the request.
+// to a subsequent handler / gear / middleware in the chain to stop processing the request.
 func NewCanceledContext(c context.Context) context.Context {
 
 	var cancel context.CancelFunc
 	c, cancel = context.WithCancel(c)
-	defer cancel()
+	cancel()
 	return c
 
 }
