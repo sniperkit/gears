@@ -128,16 +128,18 @@ func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	return h
 }
 
-// allows for using simple handlers (those without context in NewHandler)
-func withContext(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler {
-	return func(c context.Context, w http.ResponseWriter, r *http.Request) {
+// WithContext wraps a http.HandlerFunc returning a Gear.
+// This provides a way to combine common middleware packages with gears.
+func WrapHandlerFunc(fn http.HandlerFunc) Gear {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
 		fn(w, r)
+		return c
 	}
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// logged writer
-	lw := &loggedWriter{0, w}
+	lw := &loggedWriter{200, w}
 	c, cancel := context.WithCancel(BGContext)
 	c = context.WithValue(c, "start_timestamp", time.Now().UTC())
 	defer func() {
