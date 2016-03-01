@@ -35,7 +35,7 @@ type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) contex
 // func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
 // func(c context.Context, w http.ResponseWriter, r *http.Request)
 // http.Handler
-// Passing other types will return error.
+// Passing other types will panic.
 func New(fn interface{}) Gear {
 	switch t := fn.(type) {
 	case func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context:
@@ -44,6 +44,8 @@ func New(fn interface{}) Gear {
 		return wrapContextHandler(t)
 	case http.Handler:
 		return wrapHandler(t)
+	case http.HandlerFunc:
+		return WrapHandlerFunc(t)
 	default:
 		panic("invalid type")
 	}
