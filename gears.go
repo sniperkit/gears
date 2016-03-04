@@ -46,7 +46,7 @@ func New(fn interface{}) Gear {
 	case http.Handler:
 		return wrapHandler(t)
 	case http.HandlerFunc:
-		return WrapHandlerFunc(t)
+		return wrapHandlerFunc(t)
 	default:
 		panic("invalid type")
 	}
@@ -62,6 +62,13 @@ func wrapHandler(h http.Handler) Gear {
 func wrapContextHandler(h ContextHandler) Gear {
 	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
 		h(c, w, r)
+		return c
+	}
+}
+
+func wrapHandlerFunc(fn http.HandlerFunc) Gear {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+		fn(w, r)
 		return c
 	}
 }
@@ -119,6 +126,7 @@ func (lw *loggedWriter) Write(b []byte) (int, error) {
 // gear.Handlers which can be used with standard http routers.
 // fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
 // or func(c context.Context, w http.ResponseWriter, r *http.Request)
+// If no custom logger is required, use a chained gear as http.Handler instead.
 func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	gear := Chain(gears...)
 	h := &handler{gear: gear}
@@ -129,15 +137,6 @@ func NewHandler(logger Logger, gears ...Gear) http.Handler {
 	}
 
 	return h
-}
-
-// WrapHandlerFunc wraps a http.HandlerFunc returning a Gear.
-// This provides a way to combine common middleware packages with gears.
-func WrapHandlerFunc(fn http.HandlerFunc) Gear {
-	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
-		fn(w, r)
-		return c
-	}
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -241,4 +240,20 @@ func NewCanceledContext(c context.Context) context.Context {
 	cancel()
 	return c
 
+}
+
+func (gear Gear) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	c, cancel := context.WithCancel(BGContext)
+
+	defer func() {
+		cancel()
+	}()
+
+	c = gear(c, w, r)
+	switch c.Err() {
+	case context.Canceled, context.DeadlineExceeded:
+		handleError(c, w)
+		return
+	}
 }
