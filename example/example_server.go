@@ -48,22 +48,21 @@ func mainHandler(c context.Context, w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	base := gears.NewHandler(mainHandler, gearHeaderExample)
+	base := gears.Chain(gearHeaderExample, gears.New(mainHandler))
 
 	// single middleware
 	http.Handle("/main", base)
 
 	// extend base handler with a new gear (middleware)
-	http.Handle("/main/extended", gears.NewHandler(base, gearTokenExample))
+	http.Handle("/main/extended", gears.Chain(base, gearTokenExample))
 
 	// chain middleware in the handler constructor...
-	http.Handle("/error", gears.NewHandler(mainHandler, gearErrorExample, gearHeaderExample))
+	http.Handle("/error", gears.Chain(gearErrorExample, gearHeaderExample, gears.New(mainHandler)))
 
 	//...or chain middleware before using them in the constructor
 	gearBox := gears.Chain(gearTokenExample, gearHeaderExample)
-	http.Handle("/gearbox", gears.NewHandler(mainHandler, gearBox))
+	http.Handle("/gearbox", gears.Chain(gearBox, gears.New(mainHandler)))
 
 	// tip: chained middleware can be chained further.
-
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
