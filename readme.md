@@ -66,14 +66,11 @@ Chain multiple middleware returning a single Gear func.
 ```go
 func New(fn interface{}) Gear
 ```
-New Gear is constructed by taking either of the following types as input; func(c
-context.Context, w http.ResponseWriter, r *http.Request) context.Context
+New Gear is constructed by taking either of the following types as input:
 
-func(c context.Context, w http.ResponseWriter, r *http.Request)
-
-http.Handler
-
-http.HandlerFunc
+- func(c context.Context, w http.ResponseWriter, r *http.Request)
+context.Context - func(c context.Context, w http.ResponseWriter, r
+*http.Request) - http.Handler - http.HandlerFunc
 
 Passing other types will panic.
 
