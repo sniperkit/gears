@@ -8,9 +8,7 @@
 ```go
 var BGContext context.Context
 ```
-BGContext is the background context for all gears middleware. Usually the http.HandleFunc
-Is provided by NewHandler which cancels the derived context as soon the http request is
-handled.  
+BGContext is the background context for all gears middleware
 
 #### func  NewCanceledContext
 
@@ -37,7 +35,8 @@ func NewHandler(logger Logger, gears ...Gear) http.Handler
 NewHandler returns a http.Handler as a convenient way to construct context aware
 gear.Handlers which can be used with standard http routers. fn must have a
 signature of either func(w http.ResponseWriter, r *http.Request) or func(c
-context.Context, w http.ResponseWriter, r *http.Request)
+context.Context, w http.ResponseWriter, r *http.Request) If no custom logger is
+required, use a chained gear as http.Handler instead.
 
 #### type ContextHandler
 
@@ -67,20 +66,24 @@ Chain multiple middleware returning a single Gear func.
 ```go
 func New(fn interface{}) Gear
 ```
-New Gear is constructed by taking either of the following types as input;  
-func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context  
-func(c context.Context, w http.ResponseWriter, r *http.Request)  
-http.Handler  
-http.HandlerFunc  
-Passing other types will return error.
+New Gear is constructed by taking either of the following types as input; func(c
+context.Context, w http.ResponseWriter, r *http.Request) context.Context func(c
+context.Context, w http.ResponseWriter, r *http.Request) http.Handler
+http.HandlerFunc Passing other types will panic.
 
-#### func  WrapHandlerFunc
+#### func (Gear) ServeHTTP
 
 ```go
-func WrapHandlerFunc(fn http.HandlerFunc) Gear
+func (gear Gear) ServeHTTP(w http.ResponseWriter, r *http.Request)
 ```
-WrapHandlerFunc wraps a http.HandlerFunc returning a Gear. This provides a way
-to combine common middleware packages with gears.
+
+#### func (Gear) WithTrace
+
+```go
+func (gear Gear) WithTrace(gatherer fennel.Gatherer) http.Handler
+```
+WithTrace returns a handler which records http request metrics (reponse time,
+status code, path) to a fennel.SimpleGatherer (metrics collection backend).
 
 #### type JSONError
 
