@@ -34,8 +34,11 @@ type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) contex
 // New Gear is constructed by taking either of the following types as input:
 //
 // - func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
+//
 // - func(c context.Context, w http.ResponseWriter, r *http.Request)
+//
 // - http.Handler
+//
 // - http.HandlerFunc
 //
 // Passing other types will panic.
