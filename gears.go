@@ -2,7 +2,9 @@ package gears
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"reflect"
 
 	"golang.org/x/net/context"
 )
@@ -43,7 +45,7 @@ func New(fn interface{}) Gear {
 	case http.HandlerFunc:
 		return wrapHandlerFunc(t)
 	default:
-		panic("invalid type")
+		panic(fmt.Sprintf("invalid parameter type for gears.New (%v)\n", reflect.TypeOf(fn).Kind()))
 	}
 }
 
