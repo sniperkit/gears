@@ -1,21 +1,5 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [
-		{
-			"path": "github.com/Typeform/fennel",
-			"revision": "5685062d5d1775380e3e643b54a8c19d209900b6",
-			"revisionTime": "2016-03-08T14:21:54+01:00"
-		},
-		{
-			"path": "github.com/Typeform/fennel/inputs/httptrace",
-			"revision": "5685062d5d1775380e3e643b54a8c19d209900b6",
-			"revisionTime": "2016-03-08T14:21:54+01:00"
-		},
-		{
-			"path": "golang.org/x/net/context",
-			"revision": "2e9cee70ee697e0a2ef894b560dda50dec7dff58",
-			"revisionTime": "2016-01-21T16:20:05Z"
-		}
-	]
+	"package": []
 }
