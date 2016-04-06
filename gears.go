@@ -2,11 +2,7 @@ package gears
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"golang.org/x/net/context"
 )
@@ -21,12 +17,6 @@ func init() {
 
 // ContextHandler is a function signature for handers which require context
 type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
-
-// Handler is a context aware http request handler
-type handler struct {
-	log  Logger
-	gear Gear
-}
 
 // Gear is a context aware middleware function signature
 type Gear func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context
@@ -78,36 +68,6 @@ func wrapHandlerFunc(fn http.HandlerFunc) Gear {
 	}
 }
 
-// httpError contains status code and message
-// and implements error interface
-type httpError struct {
-	status  int
-	message string
-}
-
-func (err *httpError) Error() string {
-	return fmt.Sprintf("%v %s", err.Status(), err.message)
-}
-
-func (err *httpError) Status() int {
-	return err.status
-}
-
-func (err *httpError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{"error": err.Status(), "description": err.Error()})
-}
-
-// NewHTTPError returns a httpError as an error interface
-func newHTTPError(status int, message string) *httpError {
-	return &httpError{status, message}
-}
-
-// Logger is an interface which is used by gears to log
-// return code and completion time on each http request
-type Logger interface {
-	Printf(format string, v ...interface{})
-}
-
 // loggedWriter
 type loggedWriter struct {
 	status int
@@ -125,46 +85,6 @@ func (lw *loggedWriter) Header() http.Header {
 
 func (lw *loggedWriter) Write(b []byte) (int, error) {
 	return lw.w.Write(b)
-}
-
-// NewHandler returns a http.Handler as a convenient way to construct context aware
-// gear.Handlers which can be used with standard http routers.
-// fn must have a signature of either func(w http.ResponseWriter, r *http.Request)
-// or func(c context.Context, w http.ResponseWriter, r *http.Request)
-// If no custom logger is required, use a chained gear as http.Handler instead.
-func NewHandler(logger Logger, gears ...Gear) http.Handler {
-	gear := Chain(gears...)
-	h := &handler{gear: gear}
-	if logger != nil {
-		h.log = logger
-	} else {
-		h.log = log.New(os.Stdout, "", log.LstdFlags)
-	}
-
-	return h
-}
-
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// logged writer
-	lw := &loggedWriter{200, w}
-	c, cancel := context.WithCancel(BGContext)
-	c = context.WithValue(c, "start_timestamp", time.Now().UTC())
-	defer func() {
-		start, ok := c.Value("start_timestamp").(time.Time)
-		if ok {
-			// just in case something overwrites the value with a different type
-			// we don't want to panic
-			h.log.Printf("\"%s %s\" %v in %s", r.Method, r.URL.Path, lw.status, time.Since(start))
-		}
-		cancel()
-	}()
-
-	c = h.gear(c, lw, r)
-	switch c.Err() {
-	case context.Canceled, context.DeadlineExceeded:
-		handleError(c, lw)
-		return
-	}
 }
 
 // Chain multiple middleware returning a single Gear func.
@@ -197,43 +117,52 @@ func handleError(c context.Context, w http.ResponseWriter) {
 		return
 	}
 
-	statusErr, ok := errValue.(StatusError)
-	if !ok {
-		// error doesn't implement StatusError
-		statusErr = NewStatusError(500, fmt.Sprint(errValue))
+	res := detailedError{}
+	switch t := errValue.(type) {
+	case DetailedError:
+		res.status = t.Status()
+		res.ErrorCode = t.Code()
+		res.ErrorDescription = t.Description()
+		res.ErrorDetails = t.Details()
+	case Error:
+		res.status = t.Status()
+		res.ErrorCode = t.Code()
+		res.ErrorDescription = t.Description()
+	case StatusError:
+		res.status = t.Status()
+		res.ErrorDescription = t.Error()
+	default:
+		res.status = 500
+		res.ErrorCode = "unknown_error"
+		res.ErrorDescription = "application returned invalid error message"
+		res.ErrorDetails = errValue
 	}
 
-	responseBody, err := json.Marshal(statusErr)
-	if err != nil {
-		// error can't be marshaled
-		statusErr = NewStatusError(500, fmt.Sprint(errValue))
-	}
+	responseBody, _ := json.Marshal(res)
 
 	// Write the response
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(statusErr.Status())
-	fmt.Fprintln(w, string(responseBody))
+	w.WriteHeader(res.Status())
+	w.Write(responseBody)
 }
 
 // NewStatusError sets the error on the context and returns the canceled context.
-func NewStatusError(status int, message string) StatusError {
-	return &httpError{status, message}
+// It is going to be deprecated, please use NewError instead which can create more
+// precise error messages.
+func NewStatusError(status int, description string) StatusError {
+	return detailedError{status: status, ErrorDescription: description}
 }
 
-// NewErrorContext expects an err which implements StatusError interface, and returns
-// a context which has a json formatted error on it.
+// NewErrorContext expects a context and err, the latter implementing StatusError interface.
+// It returns a canceled context with the error set under "error" key.
 func NewErrorContext(c context.Context, err StatusError) context.Context {
 
 	var cancel context.CancelFunc
 	c, cancel = context.WithCancel(c)
 	defer cancel()
 
-	if jsonErr, ok := err.(JSONError); ok {
-		return context.WithValue(c, "error", jsonErr)
-	}
-
-	return context.WithValue(c, "error", &httpError{err.Status(), err.Error()})
+	return context.WithValue(c, "error", err)
 }
 
 // NewCanceledContext return a context which is canceled. It is used for signaling

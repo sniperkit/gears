@@ -24,19 +24,8 @@ request.
 ```go
 func NewErrorContext(c context.Context, err StatusError) context.Context
 ```
-NewErrorContext expects an err which implements StatusError interface, and
-returns a context which has a json formatted error on it.
-
-#### func  NewHandler
-
-```go
-func NewHandler(logger Logger, gears ...Gear) http.Handler
-```
-NewHandler returns a http.Handler as a convenient way to construct context aware
-gear.Handlers which can be used with standard http routers. fn must have a
-signature of either func(w http.ResponseWriter, r *http.Request) or func(c
-context.Context, w http.ResponseWriter, r *http.Request) If no custom logger is
-required, use a chained gear as http.Handler instead.
+NewErrorContext expects a context and err, the latter implementing StatusError
+interface. It returns a canceled context with the error set under "error" key.
 
 #### type ContextHandler
 
@@ -45,6 +34,40 @@ type ContextHandler func(c context.Context, w http.ResponseWriter, r *http.Reque
 ```
 
 ContextHandler is a function signature for handers which require context
+
+#### type DetailedError
+
+```go
+type DetailedError interface {
+	Error
+	Details() interface{}
+}
+```
+
+DetailedError is an interface for being used for cases where more context is
+required to be provided with the error message.
+
+#### type Error
+
+```go
+type Error interface {
+	StatusError
+	Code() string
+	Description() string
+}
+```
+
+Error is an interface used in cases when an error-code string and a longer
+description needs to be passed with the original error message
+
+#### func  NewError
+
+```go
+func NewError(status int, code, description string, details interface{}) Error
+```
+NewError returns an implementation of Error interface. Use NewError to set the
+value for the "error" key in the context of a middleware. The details can be a
+nil interface.
 
 #### type Gear
 
@@ -85,14 +108,6 @@ Passing other types will panic.
 func (gear Gear) ServeHTTP(w http.ResponseWriter, r *http.Request)
 ```
 
-#### func (Gear) WithTrace
-
-```go
-func (gear Gear) WithTrace(gatherer fennel.Gatherer) http.Handler
-```
-WithTrace returns a handler which records http request metrics (reponse time,
-status code, path) to a fennel.SimpleGatherer (metrics collection backend).
-
 #### type JSONError
 
 ```go
@@ -104,17 +119,6 @@ type JSONError interface {
 
 JSONError is an interface used for handling errors as JSON encoded bytes.
 
-#### type Logger
-
-```go
-type Logger interface {
-	Printf(format string, v ...interface{})
-}
-```
-
-Logger is an interface which is used by gears to log return code and completion
-time on each http request
-
 #### type StatusError
 
 ```go
@@ -124,11 +128,14 @@ type StatusError interface {
 }
 ```
 
-StatusError is an interface used for handling http errors with proper statuses
+StatusError is an interface used in case an http status code needs to be passed
+with the error message
 
 #### func  NewStatusError
 
 ```go
-func NewStatusError(status int, message string) StatusError
+func NewStatusError(status int, description string) StatusError
 ```
 NewStatusError sets the error on the context and returns the canceled context.
+It is going to be deprecated, please use NewError instead which can create more
+precise error messages.
