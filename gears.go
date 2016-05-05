@@ -91,10 +91,10 @@ func (lw *loggedWriter) Write(b []byte) (int, error) {
 
 // Chain multiple middleware returning a single Gear func.
 func Chain(gears ...Gear) Gear {
-	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) (rc context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
-				c = NewErrorContext(c, NewError(500, "server_error", fmt.Sprint(r), nil))
+				rc = NewErrorContext(c, NewError(500, "server_error", fmt.Sprint(r), nil))
 			}
 		}()
 
