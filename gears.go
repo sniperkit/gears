@@ -102,7 +102,7 @@ func Chain(gears ...Gear) Gear {
 		for _, gear := range gears {
 			localCtx = gear(c, w, r)
 			if localCtx == nil {
-				return NewErrorContext(c, NewStatusError(500, "Middleware returned nil context"))
+				return NewErrorContext(c, NewError(500, "server_error", "Middleware returned nil context", nil))
 			}
 			if localCtx.Err() != nil {
 				return localCtx
