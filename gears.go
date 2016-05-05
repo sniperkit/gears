@@ -91,12 +91,18 @@ func (lw *loggedWriter) Write(b []byte) (int, error) {
 
 // Chain multiple middleware returning a single Gear func.
 func Chain(gears ...Gear) Gear {
-	return func(c context.Context, w http.ResponseWriter, r *http.Request) context.Context {
+	return func(c context.Context, w http.ResponseWriter, r *http.Request) (rc context.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				rc = NewErrorContext(c, NewError(500, "server_error", fmt.Sprint(r), nil))
+			}
+		}()
+
 		var localCtx context.Context
 		for _, gear := range gears {
 			localCtx = gear(c, w, r)
 			if localCtx == nil {
-				return NewErrorContext(c, NewStatusError(500, "Middleware returned nil context"))
+				return NewErrorContext(c, NewError(500, "server_error", "Middleware returned nil context", nil))
 			}
 			if localCtx.Err() != nil {
 				return localCtx
