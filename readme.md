@@ -2,6 +2,11 @@
 --
     import "github.com/zgiber/gears"
 
+## Important
+
+With the introduction of context in go 1.7 the benefits of using this package are probably not worth
+introducing external dependencies. Use the standard package's context, and the helper methods on the
+http.Request instead.
 
 ## Usage
 
